@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flight lookup · flighttruth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500&family=Barlow+Condensed:wght@500;600&display=swap" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main>
+    <p class="nav"><a href="/">Trips</a></p>
+    <h1>flighttruth</h1>
+    <p class="tagline">What different flight-data sources actually say about your flight — weighted by trust, with paywalled gaps called out.</p>
+
+    <form id="search-form">
+      <label><input type="radio" name="type" value="number" checked /> Flight number</label>
+      <label><input type="radio" name="type" value="tail" /> Tail number</label>
+      <input type="text" id="query" placeholder="e.g. LY91" required />
+      <input type="date" id="date" aria-label="Date" required />
+      <button type="submit">Look up</button>
+    </form>
+
+    <section id="route-discovery">
+      <h2>Don't know the flight number?</h2>
+      <form id="route-form">
+        <input type="text" id="route-origin" placeholder="Origin airport, e.g. HKG" required />
+        <input type="text" id="route-destination" placeholder="Destination airport, e.g. ICN" required />
+        <input type="date" id="route-date" aria-label="Date" required />
+        <button type="submit">Find flights</button>
+      </form>
+      <p class="hint">Results come from FlightStats' own route listing and may not include every operating or codeshare-only carrier.</p>
+      <ul id="route-results" hidden></ul>
+      <p id="route-error" hidden></p>
+    </section>
+
+    <section id="results" hidden>
+      <div id="summary"></div>
+      <button id="refresh-btn" type="button">Refresh (bypass cache)</button>
+      <h2>Flight</h2>
+      <div id="flight-panel"></div>
+      <h2>Aircraft</h2>
+      <div id="aircraft-panel"></div>
+      <h2>Sources</h2>
+      <div class="table-scroll"><table id="sources-table"></table></div>
+    </section>
+
+    <p id="error" hidden></p>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

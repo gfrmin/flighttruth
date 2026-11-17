@@ -1,0 +1,27 @@
+# Type check and tests on a plain clone, plus the shape half of the PII guard.
+#
+# The guard's denylist half needs a private file that never leaves a maintainer's machine, so it
+# only runs in the local hooks. The shape half needs nothing and runs here, catching an email
+# address, a home path or a tailnet address in any push or fork PR, even one that skipped hooks.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit -p .
+      - run: npm test
+      - name: PII guard (shapes)
+        run: python3 .githooks/pii_check.py --shapes-only

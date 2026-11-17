@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trip · flighttruth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500&family=Barlow+Condensed:wght@500;600&display=swap" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="trip">
+    <p class="nav"><a href="/">Trips</a></p>
+
+    <header class="trip-head">
+      <h1 id="trip-title">Loading…</h1>
+      <p id="headline" class="headline"></p>
+      <p id="headline-detail" class="headline-detail"></p>
+    </header>
+    <p id="load-error" class="error" role="alert" hidden></p>
+
+    <div id="strips" class="strips"></div>
+    <div id="details"></div>
+
+    <section id="timeline" class="timeline" hidden>
+      <h2>Timeline</h2>
+      <ol id="timeline-list"></ol>
+    </section>
+
+    <footer class="trip-foot">
+      <span id="poll-status" class="hint"></span>
+      <button id="poll-now" type="button">Refresh now</button>
+    </footer>
+  </main>
+  <script type="module" src="/trips.js"></script>
+</body>
+</html>

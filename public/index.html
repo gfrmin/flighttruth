@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trips · flighttruth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500&family=Barlow+Condensed:wght@500;600&display=swap" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="home">
+    <header class="masthead">
+      <h1>Trips</h1>
+      <a class="quiet-link" href="/lookup.html">Look up a single flight</a>
+    </header>
+    <p id="load-error" class="error" role="alert" hidden></p>
+
+    <ul id="active-trips" class="trip-cards"></ul>
+    <p id="no-trips" class="hint" hidden>No trips yet. Add one: flight numbers, then the date.</p>
+
+    <form id="add-trip" class="add-trip">
+      <label for="trip-input">Watch a trip</label>
+      <div class="add-trip-row">
+        <input type="text" id="trip-input" placeholder="LX100 LX200 2026-03-14" autocomplete="off" autocapitalize="characters" required />
+        <input type="text" id="trip-label" placeholder="Label (optional)" />
+        <button type="submit">Watch trip</button>
+      </div>
+      <p class="hint">Flight numbers then a date (YYYY-MM-DD); a date applies to the flights before it.</p>
+      <p id="add-error" class="error" role="alert" hidden></p>
+    </form>
+
+    <section id="past" hidden>
+      <h2>Past trips</h2>
+      <ul id="past-trips" class="trip-cards past"></ul>
+    </section>
+  </main>
+  <script type="module" src="/home.js"></script>
+</body>
+</html>

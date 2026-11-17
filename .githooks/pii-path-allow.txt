@@ -1,0 +1,46 @@
+# Placeholder + system path roots that may legitimately appear in tracked text.
+# One prefix per line. A tracked filesystem path whose prefix is NOT listed here is
+# flagged by .githooks/pii_check.py. NEVER add a personal data root (e.g. a real
+# home or mount path) here — this file is public. Real machine prefixes are rejected
+# automatically from the environment ($HOME); they are never enumerated in-tree.
+
+# --- HTTP route namespaces (public API surface, and the sites the sources read) ---
+/api
+/data
+/v1
+/v2
+/sites
+# Paths on the flight sites the sources read, as they appear in captured fixtures.
+/flight-tracker
+/_next
+/flights
+/company
+/aeroapi
+/ada-services
+# Regex literals in code (`/cancel/i`), which the path heuristic can't tell from paths.
+/cancel
+/divert
+# Route examples in the guard's own README (copied from the repo it came from).
+/entries
+/feeds
+
+# --- system roots ----------------------------------------------------------
+/tmp
+/etc
+/usr
+/var
+/opt
+/bin
+/run
+/proc
+/sys
+/dev
+/path/to
+/nonexistent
+
+# --- documented install conventions (tilde-rooted, anonymous) ---------------
+~/git
+~/.config
+~/.local
+# The guard's own documented default KB root: tilde-rooted, a public default.
+~/.life-agent

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+cache/*.json
+.env
+*.db
+.superpowers/
+docs/superpowers/
+node_modules
+data/airlines.local.json
+
+# Per-clone notes for maintainers (where private design docs and deploy config live).
+CLAUDE.local.md

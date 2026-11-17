@@ -1,0 +1,25 @@
+# flighttruth trip watcher — a systemd --user unit.
+# Install (from the repo root):
+#   mkdir -p ~/.config/systemd/user
+#   ln -s "$PWD/packaging/flighttruth.service" ~/.config/systemd/user/flighttruth.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now flighttruth.service
+# Settings and API keys come from the gitignored .env in the repo root (see .env.example).
+# The server binds 127.0.0.1 unless HOST is set: keep it that way, or set HOST in a drop-in to an
+# address only you can reach (a VPN interface), never a public one -- the API has no auth and
+# adding a trip triggers paid scrapes. ExecStart assumes the repo is at %h/git/flighttruth.
+[Unit]
+Description=flighttruth trip watcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/git/flighttruth
+Environment=PORT=3917
+ExecStart=%h/git/flighttruth/node_modules/.bin/tsx src/server.ts
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
