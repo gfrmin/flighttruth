@@ -83,7 +83,7 @@ function tripsRouter({ store, pollNow, updates }: AppDeps): express.Router {
     res.write(': connected\n\n');
     const unsubscribe = updates.subscribe(trip.id, () => res.write('event: updated\ndata: {}\n\n'));
     const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), HEARTBEAT_MS);
-    req.on('close', () => {
+    res.on('close', () => {
       clearInterval(heartbeat);
       unsubscribe();
     });

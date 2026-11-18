@@ -148,8 +148,10 @@ export function itsDay(day, leg, places = {}) {
 const FLIGHT_TIME_SLACK = 5;
 
 /**
- * Gate to gate, from UTC instants: the local clocks at each end hide it across time zones. The
- * schedule follows when the best times differ from it by 5 minutes or more.
+ * Departure to arrival from the best times, as UTC instants: the local clocks at each end hide it
+ * across time zones. Each end is its best-known time (gate, runway, estimate or schedule), so
+ * once in progress it can mix gate and runway times. The schedule follows when the best times
+ * differ from it by 5 minutes or more.
  */
 export function flightTime(leg) {
   const best = leg.departure?.best && leg.arrival?.best ? minutesBetween(leg.departure.best.utc, leg.arrival.best.utc) : null;

@@ -98,6 +98,8 @@ describe('server', () => {
       const next = new TextDecoder().decode((await reader.read()).value);
       expect(next).toBe('event: updated\ndata: {}\n\n');
       await reader.cancel();
+      for (let i = 0; i < 50 && updates.listenerCount(id) > 0; i++) await new Promise((r) => setTimeout(r, 10));
+      expect(updates.listenerCount(id)).toBe(0);
     } finally {
       server.close();
     }

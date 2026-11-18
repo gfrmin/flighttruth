@@ -181,13 +181,29 @@ if (tripId) {
   showTrip();
   // New data shows up as soon as a poll saves it; the minute timer keeps "checked 3 min ago"
   // honest and covers a dropped stream. After a reconnect, catch up on anything missed.
-  const events = new EventSource(`/api/trips/${tripId}/events`);
-  let dropped = false;
-  events.addEventListener('updated', () => showTrip());
-  events.addEventListener('error', () => { dropped = true; });
-  events.addEventListener('open', () => { if (dropped) { dropped = false; showTrip(); } });
-  setInterval(showTrip, 60_000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') showTrip(); });
+  // The stream is open only while the tab is visible: over plain HTTP a browser allows 6
+  // connections per host, so background tabs must not each hold one.
+  let events = null;
+  const listen = () => {
+    let dropped = false;
+    events = new EventSource(`/api/trips/${tripId}/events`);
+    events.addEventListener('updated', () => showTrip());
+    events.addEventListener('error', () => { dropped = true; });
+    events.addEventListener('open', () => { if (dropped) { dropped = false; showTrip(); } });
+  };
+  const stopListening = () => { events?.close(); events = null; };
+  if (document.visibilityState === 'visible') listen();
+  setInterval(() => { if (document.visibilityState === 'visible') showTrip(); }, 60_000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      if (!events) listen();
+      showTrip();
+    } else {
+      stopListening();
+    }
+  });
+  window.addEventListener('pagehide', stopListening);
+  window.addEventListener('pageshow', () => { if (!events && document.visibilityState === 'visible') listen(); });
 } else {
   location.replace('/');
 }
