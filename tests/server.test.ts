@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/server.js';
 import { openStore } from '../src/store.js';
+import { createTripUpdates } from '../src/tripUpdates.js';
+import type { AddressInfo } from 'node:net';
 
 describe('server', () => {
   it('responds to health check', async () => {
@@ -68,6 +70,46 @@ describe('server', () => {
     const res = await request(app).get(`/api/trips/${created.body.id}`);
     expect(res.body.alerts[0].message).toBe('U21234 took off from LPA 12:57');
   });
+  it('GET /api/trips/:id names the places in its view', async () => {
+    const store = openStore(':memory:');
+    const app = createApp({ store, pollNow: async () => {} });
+    const created = await request(app).post('/api/trips').send({ input: 'LX1 2026-11-18' });
+    const leg = { origin: 'LGW', destination: 'ZRH', extras: { rotation: { previous: [{ origin: 'HKG', destination: 'LGW' }] } } };
+    store.saveTripState(created.body.id, { legs: [leg], connections: [], totalMinutes: null, state: 'upcoming' } as never, null);
+    const res = await request(app).get(`/api/trips/${created.body.id}`);
+    expect(res.body.places).toEqual({ LGW: 'London', ZRH: 'Zurich', HKG: 'Hong Kong' });
+  });
+
+  it('GET /api/trips/:id/events tells the page when a poll saved new data', async () => {
+    const store = openStore(':memory:');
+    const updates = createTripUpdates();
+    const app = createApp({ store, pollNow: async () => {}, updates });
+    const id = (await request(app).post('/api/trips').send({ input: 'LX1 2026-11-18' })).body.id;
+    const server = app.listen(0);
+    try {
+      const { port } = server.address() as AddressInfo;
+      const res = await fetch(`http://127.0.0.1:${port}/api/trips/${id}/events`);
+      expect(res.headers.get('content-type')).toContain('text/event-stream');
+      const reader = res.body!.getReader();
+      const first = new TextDecoder().decode((await reader.read()).value);
+      expect(first).toContain(': connected');
+      updates.publish(id + 1);
+      updates.publish(id);
+      const next = new TextDecoder().decode((await reader.read()).value);
+      expect(next).toBe('event: updated\ndata: {}\n\n');
+      await reader.cancel();
+      for (let i = 0; i < 50 && updates.listenerCount(id) > 0; i++) await new Promise((r) => setTimeout(r, 10));
+      expect(updates.listenerCount(id)).toBe(0);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('GET /api/trips/:id/events is 404 for an unknown trip', async () => {
+    const app = createApp({ store: openStore(':memory:'), pollNow: async () => {}, updates: createTripUpdates() });
+    expect((await request(app).get('/api/trips/99/events')).status).toBe(404);
+  });
+
   it('GET / serves the trips home', async () => {
     const res = await request(createApp()).get('/');
     expect(res.text).toContain('id="add-trip"');

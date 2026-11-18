@@ -120,6 +120,7 @@ input { background: transparent; color: var(--ink); border: 1px solid var(--rule
 .strip-sub s { color: var(--muted); }
 .strip-events { font-size: 0.875rem; font-weight: 500; }
 .strip-plane { font-size: 0.95rem; }
+.strip-duration { margin-top: -0.35rem; text-align: center; font-size: 0.875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Connection between strips */
 .connection { margin: 0 0 0 1.5rem; padding: 0.3rem 0 0.3rem 0.75rem; border-left: 3px solid var(--ok); font-weight: 500; }

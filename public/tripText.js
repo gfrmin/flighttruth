@@ -135,11 +135,30 @@ export function sentLabel(iso, now, timeZone = undefined) {
   return day(new Date(iso)) === day(now) ? clock : `${fmt({ weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '')} ${clock}`;
 }
 
+/** "Zurich (ZRH)" when the city is known, else the bare code; `places` is the API's { IATA: city }. */
+export const place = (code, places = {}) => (code ? (places[code] ? `${places[code]} (${code})` : code) : '?');
+
 /** The plane's day before this flight, oldest first, then the traveller's own leg; null if none. */
-export function itsDay(day, leg) {
+export function itsDay(day, leg, places = {}) {
   if (day.length === 0) return null;
-  const places = [day[0].origin, ...day.map((f) => f.destination)].map((c) => c ?? '?');
-  return `${places.join(' → ')}, then yours: ${leg.origin ?? '?'} → ${leg.destination ?? '?'}`;
+  const stops = [day[0].origin, ...day.map((f) => f.destination)].map((c) => place(c, places));
+  return `${stops.join(' → ')}, then yours: ${place(leg.origin, places)} → ${place(leg.destination, places)}`;
+}
+
+const FLIGHT_TIME_SLACK = 5;
+
+/**
+ * Departure to arrival from the best times, as UTC instants: the local clocks at each end hide it
+ * across time zones. Each end is its best-known time (gate, runway, estimate or schedule), so
+ * once in progress it can mix gate and runway times. The schedule follows when the best times
+ * differ from it by 5 minutes or more.
+ */
+export function flightTime(leg) {
+  const best = leg.departure?.best && leg.arrival?.best ? minutesBetween(leg.departure.best.utc, leg.arrival.best.utc) : null;
+  if (best == null || best <= 0) return null;
+  const sched = leg.departure?.scheduled && leg.arrival?.scheduled ? minutesBetween(leg.departure.scheduled.utc, leg.arrival.scheduled.utc) : null;
+  const differs = sched != null && sched > 0 && Math.abs(best - sched) >= FLIGHT_TIME_SLACK;
+  return `Flight time ${duration(best)}${differs ? `, scheduled ${duration(sched)}` : ''}`;
 }
 
 const EVENT_GAP_MS = 5 * 60_000;
