@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error -- plain browser ES module, no type declarations
-import { headline, connectionTone, rotationToday, progress, hhmm, ago, sentLabel, radioIdent, duration, itsDay, alertTime, airportsLine, unreachable } from '../public/tripText.js';
+import { headline, connectionTone, rotationToday, progress, hhmm, ago, sentLabel, radioIdent, duration, itsDay, alertTime, airportsLine, unreachable, flightTime, place } from '../public/tripText.js';
 
 // Shapes of GET /api/trips/:id (only the fields the module reads).
 const t = (utc: string, local: string) => ({ utc, local, tz: 'x' });
@@ -170,6 +170,43 @@ describe('itsDay', () => {
   });
   it('says the plane flew nothing earlier that day', () => {
     expect(itsDay([], { origin: 'LPA', destination: 'LGW' })).toBe(null);
+  });
+  it('names the places, not just their codes, when it knows them', () => {
+    expect(itsDay(day, { origin: 'LPA', destination: 'LGW' }, { LGW: 'London', LPA: 'Gran Canaria' }))
+      .toBe('London (LGW) → Gran Canaria (LPA), then yours: Gran Canaria (LPA) → London (LGW)');
+  });
+});
+
+describe('place', () => {
+  it('puts the city before the code', () => {
+    expect(place('ZRH', { ZRH: 'Zurich' })).toBe('Zurich (ZRH)');
+  });
+  it('falls back to the code, or ? when there is none', () => {
+    expect(place('XXX', {})).toBe('XXX');
+    expect(place(null, { ZRH: 'Zurich' })).toBe('?');
+    expect(place('ZRH')).toBe('ZRH');
+  });
+});
+
+describe('flightTime', () => {
+  const leg = (depS: string, arrS: string, depB = depS, arrB = arrS) => ({
+    departure: { scheduled: t(depS, ''), best: t(depB, '') },
+    arrival: { scheduled: t(arrS, ''), best: t(arrB, '') },
+  });
+  it('gives gate-to-gate time across time zones', () => {
+    expect(flightTime(leg('2026-11-18T18:40:00Z', '2026-11-18T20:25:00Z'))).toBe('Flight time 1h 45m');
+  });
+  it('adds the schedule when the best times say otherwise', () => {
+    expect(flightTime(leg('2026-11-18T18:40:00Z', '2026-11-18T20:25:00Z', '2026-11-18T19:00:00Z', '2026-11-18T20:52:00Z')))
+      .toBe('Flight time 1h 52m, scheduled 1h 45m');
+  });
+  it('ignores a difference under 5 minutes', () => {
+    expect(flightTime(leg('2026-11-18T18:40:00Z', '2026-11-18T20:25:00Z', '2026-11-18T18:42:00Z', '2026-11-18T20:29:00Z')))
+      .toBe('Flight time 1h 47m');
+  });
+  it('says nothing without both ends', () => {
+    expect(flightTime({ departure: { best: null }, arrival: { best: t('2026-11-18T20:25:00Z', '') } })).toBe(null);
+    expect(flightTime({})).toBe(null);
   });
 });
 

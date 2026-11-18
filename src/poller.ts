@@ -19,6 +19,8 @@ export interface PollerDeps {
   positionByCallsign?: CallsignLookup;
   /** Track record and the assigned plane's rotation; optional like position. */
   enrich?: (leg: EnrichInput) => Promise<LegExtras>;
+  /** Called once a poll has saved the trip's new state (open trip pages refresh on it). */
+  onSaved?: (tripId: number) => void;
 }
 
 const MINUTE = 60_000;
@@ -236,6 +238,7 @@ export async function pollTrip(trip: Trip, deps: PollerDeps): Promise<TripView> 
   deps.store.saveTripState(trip.id, view, next);
   // A manual poll of a stopped trip that still has something to wait for resumes it.
   if ((next !== null) !== trip.active) deps.store.setTripActive(trip.id, next !== null);
+  deps.onSaved?.(trip.id);
   return view;
 }
 

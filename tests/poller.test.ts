@@ -141,6 +141,15 @@ describe('pollTrip', () => {
     expect(sent).toHaveLength(1);
   });
 
+  it('tells listeners once the new view is saved', async () => {
+    store = openStore(':memory:');
+    const trip = store.addTrip('t', legs);
+    const saved: Array<[number, boolean]> = [];
+    const s = store;
+    await pollTrip(trip, makeDeps(store, { onSaved: (id) => saved.push([id, s.getTrip(id)!.lastView !== null]) }).deps);
+    expect(saved).toEqual([[trip.id, true]]);
+  });
+
   it('does not resend alerts after a restart even without a saved view', async () => {
     dir = mkdtempSync(join(tmpdir(), 'flighttruth-poller-'));
     const path = join(dir, 'ft.db');

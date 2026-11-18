@@ -1,5 +1,5 @@
 import { inboundSentence } from './rotationText.js';
-import { headline, connectionTone, rotationToday, progress, hhmm, lateness, ago, radioIdent, duration, itsDay, alertTime, airportsLine, unreachable } from './tripText.js';
+import { headline, connectionTone, rotationToday, progress, hhmm, lateness, ago, radioIdent, duration, itsDay, alertTime, airportsLine, unreachable, flightTime, place } from './tripText.js';
 import { el, fetchOrReport } from './dom.js';
 
 const tripId = new URLSearchParams(location.search).get('id');
@@ -30,10 +30,12 @@ function endCell(label, times, where, events) {
     events ? el('span', { class: 'strip-events' }, events) : '');
 }
 
-function strip(leg, now) {
+function strip(leg, now, places) {
   const m = leg.milestones ?? {};
   const share = progress(leg, now);
   const plane = joined([leg.tailNumber, leg.aircraftType]) || 'aircraft not assigned yet';
+  const city = (code) => (code && places[code] ? ` ${places[code]}` : '');
+  const time = flightTime(leg);
   return el('article', { class: `strip phase-${leg.phase}` },
     el('div', { class: 'strip-ident' },
       el('span', { class: 'strip-flight' }, spaced(leg.flightNumber)),
@@ -46,11 +48,12 @@ function strip(leg, now) {
         : { class: 'strip-track', role: 'progressbar', 'aria-valuenow': Math.round(share * 100), 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-label': 'Share of the flight flown' },
         share == null ? '' : el('span', { class: 'strip-flown', style: `width:${(share * 100).toFixed(1)}%` })),
       el('span', { class: 'strip-airport' }, leg.destination ?? '?')),
+    time ? el('div', { class: 'strip-duration' }, time) : '',
     el('div', { class: 'strip-ends' },
-      endCell('Departs', leg.departure,
+      endCell(`Departs${city(leg.origin)}`, leg.departure,
         joined([leg.departureTerminal && `terminal ${leg.departureTerminal}`, leg.departureGate && `gate ${leg.departureGate}`], ', '),
         joined([m.pushback && `left gate ${hhmm(m.pushback)}`, m.takeoff && `took off ${hhmm(m.takeoff)}`], ', ')),
-      endCell('Arrives', leg.arrival,
+      endCell(`Arrives${city(leg.destination)}`, leg.arrival,
         joined([leg.arrivalTerminal && `terminal ${leg.arrivalTerminal}`, leg.arrivalGate && `gate ${leg.arrivalGate}`, leg.baggage && `belt ${leg.baggage}`], ', '),
         joined([m.landing && `landed ${hhmm(m.landing)}`, m.atGate && `at gate ${hhmm(m.atGate)}`], ', '))),
     el('div', { class: 'strip-plane' }, plane));
@@ -77,19 +80,19 @@ function positionFact(leg) {
     el('a', { href: `https://globe.adsb.lol/?icao=${p.hex}`, target: '_blank', rel: 'noopener' }, 'map'));
 }
 
-function rotationFacts(leg) {
+function rotationFacts(leg, places) {
   const rot = leg.extras?.rotation;
   if (!rot || rot.previous.length === 0) return [];
   const [inbound] = rot.previous;
   const { lead, verb } = inboundSentence(inbound, { ...leg, flightNumber: spaced(leg.flightNumber) });
   const turn = rot.turnMinutes == null ? '' : `; ${duration(rot.turnMinutes)} on the ground before ${spaced(leg.flightNumber)}, needs about ${rot.minTurnMinutes} min`;
-  const day = itsDay([...rotationToday(rot.previous, leg.scheduledDeparture)].reverse(), leg);
+  const day = itsDay([...rotationToday(rot.previous, leg.scheduledDeparture)].reverse(), leg, places);
   return [
     ...fact('Inbound', el('span', { class: rot.tight ? 'warn' : '' },
-      `${lead} ${inbound.flight ?? '?'} ${inbound.origin ?? '?'} → ${inbound.destination ?? '?'}, ${verb} ${inbound.arrivalLocal ?? '?'}`,
+      `${lead} ${inbound.flight ?? '?'} ${place(inbound.origin, places)} → ${place(inbound.destination, places)}, ${verb} ${inbound.arrivalLocal ?? '?'}`,
       inbound.arrivalDelay != null ? ` (${lateness(inbound.arrivalDelay)})` : '', turn)),
     ...fact('Its day', day
-      ?? `no other flights before this one; it waited ${duration(rot.turnMinutes)} at ${inbound.destination ?? leg.origin ?? '?'}`),
+      ?? `no other flights before this one; it waited ${duration(rot.turnMinutes)} at ${place(inbound.destination ?? leg.origin, places)}`),
   ];
 }
 
@@ -105,16 +108,16 @@ function trackRecordFacts(leg) {
     el('span', { class: 'chips', 'aria-label': 'Arrival minutes against schedule, newest first' }, ...chips));
 }
 
-function legDetails(leg) {
+function legDetails(leg, places) {
   return el('section', { class: 'leg-details' },
-    el('h2', {}, `${spaced(leg.flightNumber)}, ${leg.origin ?? '?'} to ${leg.destination ?? '?'}`),
+    el('h2', {}, `${spaced(leg.flightNumber)}, ${place(leg.origin, places)} to ${place(leg.destination, places)}`),
     el('dl', { class: 'facts' },
       ...fact('Airports', airportsLine(leg)),
       ...fact('Radio ident', radioIdent(leg) ?? ''),
       ...fact('Also sold as', (leg.codeshares ?? []).map(spaced).join(', ')),
       ...fact('Transponder', leg.position?.hex?.toUpperCase() ?? ''),
       ...positionFact(leg),
-      ...rotationFacts(leg),
+      ...rotationFacts(leg, places),
       ...trackRecordFacts(leg)));
 }
 
@@ -144,6 +147,7 @@ async function showTrip() {
   }
   const trip = await res.json();
   const view = trip.lastView;
+  const places = trip.places ?? {};
   const now = new Date();
   const { line, detail } = headline(view, now);
   document.title = `${trip.label} · flighttruth`;
@@ -155,9 +159,9 @@ async function showTrip() {
   strips.replaceChildren();
   (view?.legs ?? []).forEach((leg, i) => {
     if (i > 0) strips.append(connectionChip(view.connections[i - 1]));
-    strips.append(strip(leg, now));
+    strips.append(strip(leg, now, places));
   });
-  document.getElementById('details').replaceChildren(...(view?.legs ?? []).map(legDetails));
+  document.getElementById('details').replaceChildren(...(view?.legs ?? []).map((leg) => legDetails(leg, places)));
 
   const alerts = trip.alerts ?? [];
   document.getElementById('timeline').hidden = alerts.length === 0;
@@ -175,7 +179,15 @@ if (tripId) {
     else document.getElementById('poll-status').textContent = '';
   });
   showTrip();
+  // New data shows up as soon as a poll saves it; the minute timer keeps "checked 3 min ago"
+  // honest and covers a dropped stream. After a reconnect, catch up on anything missed.
+  const events = new EventSource(`/api/trips/${tripId}/events`);
+  let dropped = false;
+  events.addEventListener('updated', () => showTrip());
+  events.addEventListener('error', () => { dropped = true; });
+  events.addEventListener('open', () => { if (dropped) { dropped = false; showTrip(); } });
   setInterval(showTrip, 60_000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') showTrip(); });
 } else {
   location.replace('/');
 }

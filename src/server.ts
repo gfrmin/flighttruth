@@ -13,15 +13,21 @@ import { scrapeHtml } from './scrape.js';
 import { createTripPoller, type PollerDeps } from './poller.js';
 import { sendNtfy } from './alerts.js';
 import type { LookupType, SourceFetcher } from './types.js';
+import { placeNames } from './airports.js';
+import { createTripUpdates, type TripUpdates } from './tripUpdates.js';
 
 export interface AppDeps {
   store?: Store;
   pollNow?: (tripId: number) => Promise<void>;
   /** Shared with the poller so throttled API sources reuse one quota-saving memory. */
   sources?: SourceFetcher[];
+  /** Saved-state notices the poller publishes; the trip page listens through /events. */
+  updates?: TripUpdates;
 }
 
-function tripsRouter({ store, pollNow }: AppDeps): express.Router {
+const HEARTBEAT_MS = 25_000;
+
+function tripsRouter({ store, pollNow, updates }: AppDeps): express.Router {
   const router = express.Router();
   router.use((_req, res, next) => {
     if (!store || !pollNow) {
@@ -62,7 +68,25 @@ function tripsRouter({ store, pollNow }: AppDeps): express.Router {
 
   router.get('/:id', (req, res) => {
     const trip = findTrip(req, res);
-    if (trip) res.json({ ...trip, alerts: store!.listAlerts(trip.id) });
+    if (trip) res.json({ ...trip, alerts: store!.listAlerts(trip.id), places: placeNames(trip.lastView) });
+  });
+
+  // Server-sent events: one "updated" event each time a poll saves this trip's state.
+  router.get('/:id/events', (req, res) => {
+    const trip = findTrip(req, res);
+    if (!trip) return;
+    if (!updates) {
+      res.status(503).json({ error: 'live updates are not configured' });
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+    res.write(': connected\n\n');
+    const unsubscribe = updates.subscribe(trip.id, () => res.write('event: updated\ndata: {}\n\n'));
+    const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), HEARTBEAT_MS);
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
   });
 
   router.post('/:id/poll', async (req, res) => {
@@ -157,6 +181,7 @@ function main() {
   const topic = process.env.NTFY_TOPIC;
   const baseUrl = process.env.FLIGHTTRUTH_URL ?? null;
   const log = (msg: string) => console.log(msg);
+  const updates = createTripUpdates();
 
   const deps: PollerDeps = {
     store,
@@ -169,12 +194,13 @@ function main() {
     position: createPositionLookup(),
     positionByCallsign: createCallsignLookup(),
     enrich: process.env.BRIGHTDATA_API_KEY ? createEnricher((url) => scrapeHtml(url), { log }) : undefined,
+    onSaved: updates.publish,
   };
   const poller = createTripPoller(deps);
   const host = resolveHost(process.env.HOST);
   poller.start();
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
-  createApp({ store, pollNow: poller.pollNow, sources }).listen(port, host, () => {
+  createApp({ store, pollNow: poller.pollNow, sources, updates }).listen(port, host, () => {
     console.log(`flighttruth listening on http://${host}:${port}`);
   });
 }
